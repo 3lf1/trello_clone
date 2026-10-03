@@ -1,36 +1,22 @@
 import ErrorCodes from '../errors/errorCodes.js';
 import AppError from '../errors/AppError.js';
-
-
+import logger from '../utils/logger.js';
 
 function normalizeError(err) {
-
-    console.error(err);
-
-    // if(err.isOperational){
-    //     res.status(err.statusCode || 500).json({
-    //         success:false,
-    //         message: err.message || 'Internal Server Error',
-    //         code: err.code || ErrorCodes.INTERNAL_SERVER_ERROR
-    //     })
-        
-    //     return;
-    // }
-
     if (err instanceof AppError) {
         return err;
     }
 
-    if(err.isJoi){
+    if (err.isJoi) {
         return new AppError(
-            "Invalid request data",
+            'Invalid request data',
             400,
             ErrorCodes.VALIDATION_ERROR,
             err.details.map((detail) => ({
                 field: detail.path.join('.'),
                 message: detail.message
             }))
-        )
+        );
     }
 
     // Duplicate key
@@ -60,17 +46,17 @@ function normalizeError(err) {
         );
     }
 
-    if(err.name === "CastError" && err.kind === "ObjectId"){
+    if (err.name === 'CastError' && err.kind === 'ObjectId') {
         return new AppError(
-            "Invalid resource identifier",
+            'Invalid resource identifier',
             400,
             ErrorCodes.VALIDATION_ERROR
         );
     }
 
-    if(err.name === "ValidationError"){
+    if (err.name === 'ValidationError') {
         return new AppError(
-            "Validation error",
+            'Validation error',
             400,
             ErrorCodes.VALIDATION_ERROR,
             Object.values(err.errors).map((error) => ({
@@ -80,22 +66,21 @@ function normalizeError(err) {
         );
     }
 
-    if(err.name === "TokenExpiredError"){
+    if (err.name === 'TokenExpiredError') {
         return new AppError(
-            "Token has expired",
+            'Token has expired',
             401,
             ErrorCodes.TOKEN_EXPIRED
         );
     }
-    
-    if(err.name === "JsonWebTokenError"){
+
+    if (err.name === 'JsonWebTokenError') {
         return new AppError(
-            "Invalid authentication token",
+            'Invalid authentication token',
             401,
             ErrorCodes.INVALID_TOKEN
         );
     }
-    
 
     return err;
 }
@@ -104,17 +89,21 @@ export default function errorHandler(err, req, res, next) {
     const error = normalizeError(err);
 
     if (error.isOperational) {
-        return res.status(error.statusCode || 500).json({
+        logger.warn(error);
+
+        return res.status(error.statusCode).json({
             success: false,
-            message: error.message || 'Internal Server Error',
-            code: error.code || ErrorCodes.INTERNAL_SERVER_ERROR,
-            details: error.details || undefined
+            message: error.message,
+            code: error.code,
+            details: error.details
         });
     }
+
+    logger.error(error);
 
     return res.status(500).json({
         success: false,
         message: 'Internal Server Error',
-        code: ErrorCodes.INTERNAL_SERVER_ERROR
+        code: ErrorCodes.INTERNAL_ERROR
     });
 }
